@@ -7,6 +7,11 @@
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#14161a">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="秒給メーター">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root {
     --bg: #14161a;
@@ -495,6 +500,13 @@
   setMode(mode);
   if (mode === 'manual') btn.textContent = 'スタート';
 })();
+
+// PWA: Service Worker 登録（http/https のときだけ。ファイルを直接開いた場合は何もしない）
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* 失敗しても通常どおり動く */ });
+  });
+}
 </script>
 </body>
 </html>
