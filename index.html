@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>秒給メーター</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#14161a">
 <style>
   :root {
     --bg: #14161a;
@@ -29,7 +32,8 @@
     padding: 24px 16px 48px;
   }
   .app { width: 100%; max-width: 640px; }
-  h1 { font-size: 1.1rem; margin: 0 0 16px; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+  h1 { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; margin: 0 0 16px; letter-spacing: .08em; color: var(--text); font-weight: 700; }
+  h1 img { border-radius: 9px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
 
   /* ===== メーター本体 ===== */
   .meter {
@@ -128,7 +132,7 @@
 </head>
 <body>
 <main class="app">
-  <h1>🚕 秒給メーター</h1>
+  <h1><img src="logo.svg" alt="" width="36" height="36"><span>秒給メーター</span></h1>
 
   <section class="meter" aria-label="メーター">
     <div class="modes" role="group" aria-label="モード">

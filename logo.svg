@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="秒給メーター">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2e36"/>
+      <stop offset="1" stop-color="#14161a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="55%" r="55%">
+      <stop offset="0" stop-color="#ff3b30" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#ff3b30" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- タクシーの屋根ランプ兼ストップウォッチのつまみ -->
+  <rect x="236" y="112" width="40" height="40" fill="#e09a10"/>
+  <rect x="196" y="48" width="120" height="68" rx="22" fill="#ffb020"/>
+  <rect x="212" y="60" width="88" height="14" rx="7" fill="#fff" opacity=".35"/>
+  <!-- 文字盤 -->
+  <circle cx="256" cy="316" r="148" fill="#0a0a0b" stroke="#ffb020" stroke-width="18"/>
+  <circle cx="256" cy="316" r="130" fill="url(#glow)"/>
+  <g stroke="#6b7280" stroke-width="7" stroke-linecap="round">
+    <line x1="256" y1="196" x2="256" y2="214"/>
+    <line x1="256" y1="418" x2="256" y2="436" />
+    <line x1="136" y1="316" x2="154" y2="316"/>
+    <line x1="358" y1="316" x2="376" y2="316"/>
+  </g>
+  <!-- 秒針の軌跡 -->
+  <path d="M256 188 A128 128 0 0 1 369 255" fill="none" stroke="#ffb020" stroke-width="12" stroke-linecap="round"/>
+  <!-- ¥ -->
+  <text x="256" y="372" text-anchor="middle" font-family="Arial Black, Segoe UI, Helvetica, sans-serif" font-weight="900" font-size="170" fill="#ff3b30">¥</text>
+</svg>
