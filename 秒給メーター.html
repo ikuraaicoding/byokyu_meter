@@ -194,8 +194,16 @@
   <section class="settings">
     <h2>設定</h2>
     <div class="field">
-      <label for="income">月収（額面でも手取りでもOK）</label>
+      <label for="income">月収（基本給。額面でも手取りでもOK）</label>
       <div class="inp"><input type="number" id="income" min="0" step="1000" inputmode="numeric"><span class="unit">円</span></div>
+    </div>
+    <div class="field">
+      <label for="allowIn">手当（残業代の計算に含める）</label>
+      <div class="inp"><input type="number" id="allowIn" min="0" step="1000" inputmode="numeric"><span class="unit">円</span></div>
+    </div>
+    <div class="field">
+      <label for="allowEx">補助金（資格補助など・残業代に含めない）</label>
+      <div class="inp"><input type="number" id="allowEx" min="0" step="1000" inputmode="numeric"><span class="unit">円</span></div>
     </div>
     <div class="field">
       <label for="days">月の稼働日数</label>
@@ -232,6 +240,7 @@
 
     <div class="error" id="err" role="alert"></div>
     <p class="note">秒給 = 月収 ÷（稼働日数 × 労働時間 × 3600秒）。<br>
+      「手当」は秒給・残業代の計算に含まれます。「補助金」は1日分（補助金 ÷ 稼働日数）が実働に応じて加算されますが、残業代の計算には含まれません。<br>
       実働が労働時間を超えた分は 秒給 × 割増率 で加算されます。休憩は実働に含みません。<br>
       設定はこのブラウザに保存されます（外部には送信しません）。</p>
   </section>
@@ -315,13 +324,13 @@
   // ---------- 設定 ----------
   const $ = id => document.getElementById(id);
   const F = {
-    income: $('income'), days: $('days'), hours: $('hours'), mult: $('mult'),
+    income: $('income'), allowIn: $('allowIn'), allowEx: $('allowEx'), days: $('days'), hours: $('hours'), mult: $('mult'),
     start: $('tStart'), end: $('tEnd'), bs: $('tBs'), be: $('tBe')
   };
   const errEl = $('err');
   const STORE_KEY = 'byokyu-meter-v1';
   const DEFAULTS = {
-    income: 300000, days: 20, hours: 8, mult: 1.25,
+    income: 300000, allowIn: 0, allowEx: 0, days: 20, hours: 8, mult: 1.25,
     mode: 'manual', start: '09:00', end: '', bs: '12:00', be: '13:00'
   };
 
@@ -334,7 +343,7 @@
   }
   function saveSettings() {
     const s = {
-      income: F.income.value, days: F.days.value, hours: F.hours.value, mult: F.mult.value,
+      income: F.income.value, allowIn: F.allowIn.value, allowEx: F.allowEx.value, days: F.days.value, hours: F.hours.value, mult: F.mult.value,
       mode, start: F.start.value, end: F.end.value, bs: F.bs.value, be: F.be.value
     };
     try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { /* 無視 */ }
@@ -349,14 +358,16 @@
   let perSec = 0;   // 通常の秒給
   let otSec = 0;    // 所定労働時間（秒）
   let mult = 1.25;
+  let extraDay = 0; // 補助金の1日分（残業の対象外）
   let valid = false;
   const yen = (n, d = 0) => '¥' + n.toLocaleString('ja-JP', { minimumFractionDigits: d, maximumFractionDigits: d });
 
   // 実働秒数 → 稼いだ金額（所定時間を超えた分は割増）
   function earnedFor(w) {
     if (!valid) return 0;
-    if (w <= otSec) return perSec * w;
-    return perSec * otSec + perSec * mult * (w - otSec);
+    const extra = extraDay * Math.min(w / otSec, 1);
+    if (w <= otSec) return perSec * w + extra;
+    return perSec * otSec + perSec * mult * (w - otSec) + extra;
   }
 
   function parseHM(str) {
@@ -371,11 +382,13 @@
 
   function recalc() {
     const income = parseFloat(F.income.value);
+    const aIn = parseFloat(F.allowIn.value) || 0;
+    const aEx = parseFloat(F.allowEx.value) || 0;
     const days = parseFloat(F.days.value);
     const hours = parseFloat(F.hours.value);
     const m = parseFloat(F.mult.value);
     let msg = '';
-    if (!(income >= 0) || !(days > 0) || !(hours > 0) || days > 31 || hours > 24) {
+    if (!(income >= 0) || aIn < 0 || aEx < 0 || !(days > 0) || !(hours > 0) || days > 31 || hours > 24) {
       msg = '数字をチェックしてね（日数: 1〜31 / 時間: 0より大きく24以下）';
     } else if (!(m >= 1) || m > 3) {
       msg = '割増率は1〜3倍で入れてね';
@@ -387,7 +400,8 @@
     if (!valid) return;
     mult = m;
     otSec = hours * 3600;
-    const daySalary = income / days;
+    extraDay = aEx / days;
+    const daySalary = (income + aIn) / days;
     const hourSalary = daySalary / hours;
     perSec = hourSalary / 3600;
     $('sSec').textContent = yen(perSec, 3);

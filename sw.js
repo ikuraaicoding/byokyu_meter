@@ -1,6 +1,6 @@
 // 秒給メーター Service Worker
 // アプリを更新したら CACHE のバージョン番号（v1 → v2）を上げると、新しい版に入れ替わります。
-const CACHE = 'byokyu-meter-v2';
+const CACHE = 'byokyu-meter-v3';
 const ASSETS = [
   './',
   './index.html',
