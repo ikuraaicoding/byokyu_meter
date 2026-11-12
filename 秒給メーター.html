@@ -89,7 +89,18 @@
   button:hover { filter: brightness(1.15); }
   button:active { transform: translateY(1px); }
   button.primary { background: var(--amber); color: #1a0d00; border-color: var(--amber); }
-  button.primary.running { background: #ff6b5e; border-color: #ff6b5e; color: #2a0300; }
+  button.primary.running { background: #5aa9ff; border-color: #5aa9ff; color: #00182e; }
+  button.done { background: var(--green); border-color: var(--green); color: #00200f; }
+  button:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+  button.small { flex: none; padding: 4px 10px; font-size: .75rem; font-weight: 600; }
+  .history-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .history-head .total { color: var(--amber); font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  .hist { list-style: none; margin: 8px 0 0; padding: 0; }
+  .hist li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--panel-edge); font-size: .88rem; font-variant-numeric: tabular-nums; }
+  .hist .d { color: var(--muted); }
+  .hist .t { color: var(--muted); font-size: .78rem; }
+  .hist .a { font-weight: 700; color: var(--amber); text-align: right; }
+  .toast { min-height: 1.2em; margin-top: 8px; font-size: .85rem; color: var(--green); text-align: center; }
   button:focus-visible, input:focus-visible { outline: 2px solid #7db4ff; outline-offset: 2px; }
 
   /* ===== 内訳 ===== */
@@ -156,10 +167,12 @@
         <div class="elapsed" id="elapsed" title="実働時間">00:00:00</div>
       </div>
     </div>
-    <div class="buttons" id="manualButtons">
-      <button class="primary" id="btnToggle">スタート</button>
-      <button id="btnReset">リセット</button>
+    <div class="buttons">
+      <button class="primary manual-only" id="btnToggle">スタート</button>
+      <button class="done" id="btnDone" disabled>完了</button>
+      <button class="manual-only" id="btnReset">リセット</button>
     </div>
+    <div class="toast" id="toast" role="status"></div>
   </section>
 
   <section class="stats" aria-label="給料の内訳">
@@ -167,6 +180,15 @@
     <div class="stat"><div class="k">分給</div><div class="v" id="sMin">-</div></div>
     <div class="stat"><div class="k">時給</div><div class="v" id="sHour">-</div></div>
     <div class="stat"><div class="k">日給</div><div class="v" id="sDay">-</div></div>
+  </section>
+
+  <section class="settings" aria-label="給料の記録">
+    <div class="history-head">
+      <h2>給料の記録</h2>
+      <div class="total" id="histTotal"></div>
+    </div>
+    <ul class="hist" id="hist"></ul>
+    <p class="note" id="histEmpty">「完了」を押すと、その日の給料が確定して記録されます（同じ日にもう一度押すと上書き）。</p>
   </section>
 
   <section class="settings">
@@ -386,7 +408,7 @@
       elapsedMs += now - lastTick;
       lastTick = now;
     }
-    return { w: elapsedMs / 1000, state: running ? 'work' : 'idle' };
+    return { w: elapsedMs / 1000, state: running ? 'work' : (elapsedMs > 0 ? 'break' : 'idle') };
   }
 
   function clockWorked() {
@@ -439,6 +461,8 @@
     if (overtime) badge.textContent = `残業中 ×${mult}`;
     else badge.textContent = ({ before: '出勤前', break: '休憩中', after: '退勤済み' })[state] || (w > otSec ? '残業分を含む' : '');
 
+    $('btnDone').disabled = !valid || w <= 0;
+
     rafId = 0;
     if (mode === 'clock' || running) rafId = requestAnimationFrame(frame);
   }
@@ -452,7 +476,7 @@
     if (!on && running) manualWorked(); // 停止直前までを確定
     running = on;
     btn.classList.toggle('running', on);
-    btn.textContent = on ? 'ストップ' : (elapsedMs > 0 ? '再開' : 'スタート');
+    btn.textContent = on ? '休憩' : (elapsedMs > 0 ? '休憩終了' : 'スタート');
     kick();
     if (!on) { cancelAnimationFrame(rafId); rafId = 0; frame(); }
   }
@@ -468,12 +492,80 @@
     btn.textContent = 'スタート';
   });
 
+  // ---------- 完了 → その日の給料を確定して記録 ----------
+  const HIST_KEY = 'byokyu-meter-history-v1';
+  function loadHist() {
+    try {
+      const h = JSON.parse(localStorage.getItem(HIST_KEY));
+      if (Array.isArray(h)) return h.filter(r => r && typeof r.date === 'string' && isFinite(r.amount));
+    } catch (e) { /* 無視 */ }
+    return [];
+  }
+  let hist = loadHist();
+  function saveHist() {
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch (e) { /* 無視 */ }
+  }
+  function ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function renderHist() {
+    const ul = $('hist');
+    ul.textContent = '';
+    hist.sort((a, b) => b.date.localeCompare(a.date));
+    hist.forEach(r => {
+      const li = document.createElement('li');
+      const d = document.createElement('span'); d.className = 'd'; d.textContent = r.date.slice(5).replace('-', '/');
+      const t = document.createElement('span'); t.className = 't'; t.textContent = '実働 ' + fmtTime(r.seconds);
+      const a = document.createElement('span'); a.className = 'a'; a.textContent = yen(Math.floor(r.amount));
+      const x = document.createElement('button'); x.className = 'small'; x.textContent = '削除';
+      x.addEventListener('click', () => {
+        if (!confirm(r.date + ' の記録を削除しますか？')) return;
+        hist = hist.filter(h => h.date !== r.date); saveHist(); renderHist();
+      });
+      li.append(d, t, a, x);
+      ul.appendChild(li);
+    });
+    const month = ymd(new Date()).slice(0, 7);
+    const sum = hist.filter(r => r.date.startsWith(month)).reduce((n, r) => n + Math.floor(r.amount), 0);
+    $('histTotal').textContent = hist.length ? `今月合計 ${yen(sum)}` : '';
+    $('histEmpty').classList.toggle('hidden', hist.length > 0);
+  }
+
+  let toastTimer = 0;
+  $('btnDone').addEventListener('click', () => {
+    if (!valid) return;
+    const { w } = mode === 'clock' ? clockWorked() : manualWorked();
+    if (w <= 0) return;
+    const date = ymd(new Date());
+    const amount = Math.floor(earnedFor(w));
+    if (hist.some(r => r.date === date) && !confirm(date + ' はすでに記録があります。上書きしますか？')) return;
+    hist = hist.filter(r => r.date !== date);
+    hist.push({ date, seconds: Math.floor(w), amount });
+    saveHist(); renderHist();
+    if (mode === 'clock') {
+      // 退勤時刻を今にして、今日の実働を固定する
+      if (!F.end.value) {
+        const n = new Date();
+        F.end.value = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+        saveSettings();
+      }
+    } else {
+      running = false; elapsedMs = 0;
+      setRunning(false);
+      btn.textContent = 'スタート';
+    }
+    lastText = ''; frame();
+    $('toast').textContent = `${date} の給料 ${yen(amount)} を確定しました`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 5000);
+  });
+
   function setMode(m) {
     if (m === 'clock' && running) setRunning(false);
     mode = m;
     $('modeManual').classList.toggle('active', m === 'manual');
     $('modeClock').classList.toggle('active', m === 'clock');
-    $('manualButtons').classList.toggle('hidden', m === 'clock');
+    document.querySelectorAll('.manual-only').forEach(el => el.classList.toggle('hidden', m === 'clock'));
     $('clockFields').classList.toggle('hidden', m === 'manual');
     recalc();
     saveSettings();
@@ -497,6 +589,7 @@
     }
   });
 
+  renderHist();
   setMode(mode);
   if (mode === 'manual') btn.textContent = 'スタート';
 })();
